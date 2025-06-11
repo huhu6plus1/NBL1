@@ -6,3 +6,6 @@ monitoring:
     pre_8_hr_frequency: 300   # 单位：秒（5分钟）
 
 ev_threshold: 0.03  # 只推送 EV ≥ 3% 的推荐
+wechat_push:
+  enabled: true
+  method: serverchan
