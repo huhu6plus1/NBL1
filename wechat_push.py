@@ -1,22 +1,25 @@
 import requests
+import os
 
-def send_push(title, content, ev_value, method='serverchan'):
-    if method == 'serverchan':
-        key = 'SCT282237TA-4sseGxqm4WrkvefyZLDe53M0'
-        url = f'https://sctapi.ftqq.com/{key}.send'
+def send_push(title, content, ev=None, method="serverchan"):
+    if method == "serverchan":
+        key = os.getenv("serverchan_key")  # 从 GitHub Secret 环境变量读取
+        if not key:
+            print("❌ [推送失败] Server酱 Key 未配置 (环境变量 serverchan_key)")
+            return False
+        url = f"https://sctapi.ftqq.com/{key}.send"
         data = {
             "title": title,
-            "desp": f"{content}\n\nEV值：{ev_value:.2%}"
+            "desp": content
         }
         try:
-            response = requests.post(url, data=data)
-            if response.status_code == 200:
-                print("✅ Server酱推送成功")
+            res = requests.post(url, data=data)
+            if res.status_code == 200:
+                print("✅ 推送成功")
                 return True
             else:
-                print(f"❌ 推送失败，状态码：{response.status_code}")
+                print("❌ 推送失败，状态码:", res.status_code)
+                return False
         except Exception as e:
-            print(f"❌ 推送异常：{e}")
-    else:
-        print("⚠️ 当前为非Server酱模式，未发送。")
-    return False
+            print("❌ 推送异常:", str(e))
+            return False
