@@ -1,2 +1,8 @@
-monitor_frequency: 10
-push_enabled: true
+monitoring:
+  nbl1:
+    pre_30_min_frequency: 60  # 单位：秒
+    pre_15_min_frequency: 20  # 单位：秒
+  nz_nbl:
+    pre_8_hr_frequency: 300   # 单位：秒（5分钟）
+
+ev_threshold: 0.03  # 只推送 EV ≥ 3% 的推荐

@@ -1,4 +1,4 @@
-# Streamlit 主程序
+# Streamlit App 启动入口
 import streamlit as st
-st.title('NBL1 + NZNBL 自动EV监听系统')
-st.write('系统已启动...')
+st.title('NBL1 + NZ NBL 自动监听系统')
+st.markdown('✅ 系统已启动，监听条件：EV ≥ 3%，职业级别抓取策略。')
