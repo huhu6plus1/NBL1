@@ -4,36 +4,44 @@ import os
 import pandas as pd
 from datetime import datetime
 from wechat_push import send_push
+from logger import log_recommendation
+from ev_model import generate_recommendation
 
 st.set_page_config(page_title="NBL 自动EV监听系统", layout="wide")
+st.title("🏀 NBL1 + NZ NBL 自动EV监听系统 v2.2")
 
-st.title("🏀 NBL1 + NZ NBL 自动EV监听系统 v2.0")
-st.caption("🔧 包含：监听+推送+推荐记录+赛果回查")
+# ========== 1. 使用模型生成真实推荐 & 推送 & 写入日志 ==========
+st.header("🟢 生成真实推荐 + 推送 + 写入记录")
 
-# ========== 1. 系统状态与推送测试 ==========
-st.header("🟢 系统状态与测试推送")
+# 示例输入数据（后续将来自比赛爬虫）
+match_data = {
+    "match": "Waverley vs Diamond Valley",
+    "total_line": 186.5,
+    "odds": 1.82,
+    "home_full_strength": True,
+    "away_injury": False
+}
 
-st.markdown("✅ 当前监听运行中。点击下方按钮模拟生成推荐并进行真实推送（Server酱）")
-
-if st.button("🔔 测试推荐并推送"):
-    match = "Waverley vs Diamond Valley"
-    market = "小186.5 @1.82"
-    ev = 0.613
-    reason = "盘口高开，主力在阵，构成强EV"
-    content = f"推荐方向：{market}\n理由：{reason}"
-    success = send_push(f"NBL推荐 - {match}", content, ev, method="serverchan")
-    if success:
-        st.success("✅ 推送已发送，请在微信中确认")
+if st.button("🔔 运行推荐模型"):
+    match, market, ev, reason = generate_recommendation(match_data)
+    if market:
+        st.success(f"✅ 推荐方向：{market}，EV={round(ev*100, 2)}%\n理由：{reason}")
+        content = f"推荐方向：{market}\n理由：{reason}"
+        success = send_push(f"NBL推荐 - {match}", content, ev, method="serverchan")
+        log_recommendation(match, market, ev, pushed=success)
+        if success:
+            st.success("📤 推送成功 + 推荐记录已写入")
+        else:
+            st.error("⚠️ 推送失败，但记录已保存")
     else:
-        st.error("❌ 推送失败，请检查配置")
+        st.warning("暂无推荐符合EV阈值（≥3%）")
 
 # ========== 2. 最近推荐记录 ==========
 st.header("📋 最近推荐记录")
-
 log_path = "logs/recommendations.jsonl"
 if os.path.exists(log_path):
     with open(log_path, "r", encoding="utf-8") as f:
-        lines = f.readlines()[-10:]  # 显示最近10条
+        lines = f.readlines()[-10:]
         records = [json.loads(l) for l in lines]
         df = pd.DataFrame(records)
         df["timestamp"] = pd.to_datetime(df["timestamp"])
@@ -44,7 +52,6 @@ else:
 
 # ========== 3. 上传赛果，计算命中 ==========
 st.header("✅ 上传赛果 → 判断推荐是否命中")
-
 uploaded = st.file_uploader("上传赛果CSV（需包含 match, final_score 字段）", type=["csv"])
 if uploaded:
     results_df = pd.read_csv(uploaded)
@@ -52,21 +59,19 @@ if uploaded:
         st.success("✅ 成功读取赛果数据")
         st.write(results_df.head())
 
-        # 模拟命中判断（仅展示结构）
         if os.path.exists(log_path):
             logs = [json.loads(l) for l in open(log_path)]
             for log in logs:
                 row = results_df[results_df["match"] == log["match"]]
                 if not row.empty:
-                    # 简单判断命中（仅示例）
                     hit = "小" in log["market"] and int(row.iloc[0]["final_score"]) < 186.5
                     log["hit"] = hit
-            st.success("🏁 命中判断完成，未来可扩展统计 ROI")
+            st.success("🏁 命中判断完成")
         else:
-            st.warning("找不到推荐记录，无法对比")
+            st.warning("找不到推荐记录")
     else:
         st.error("❌ 缺少必要字段：match 和 final_score")
 
-# ========== 4. ROI 图表（占位） ==========
-st.header("📈 ROI趋势图（开发中）")
-st.markdown("📊 即将支持：单位时间 ROI 走势、联赛分布、推荐类型效率对比图")
+# ========== 4. ROI 趋势图 ==========
+st.header("📈 ROI趋势图（占位）")
+st.markdown("📊 即将支持：单位时间 ROI 走势、联赛分布、推荐类型ROI图表")
