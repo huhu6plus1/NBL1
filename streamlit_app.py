@@ -1,32 +1,72 @@
 import streamlit as st
+import json
+import os
+import pandas as pd
 from datetime import datetime
-import time
+from wechat_push import send_push
 
-# 假设这些函数已在对应模块中实现
-st.set_page_config(page_title="NBL1 + NZ NBL 自动EV监听系统", layout="wide")
+st.set_page_config(page_title="NBL 自动EV监听系统", layout="wide")
 
-st.title("🏀 NBL1 + NZ NBL 自动EV监听系统")
-st.markdown("✅ 系统已启动，实时监听比赛出场名单与盘口波动")
+st.title("🏀 NBL1 + NZ NBL 自动EV监听系统 v2.0")
+st.caption("🔧 包含：监听+推送+推荐记录+赛果回查")
 
-# 状态区块
-st.subheader("📅 今日比赛监控任务状态")
-st.info("系统会根据不同比赛时间段自动监听名单与盘口，并计算EV，仅当EV ≥ 3%时才推送。")
+# ========== 1. 系统状态与推送测试 ==========
+st.header("🟢 系统状态与测试推送")
 
-# 手动触发按钮
-if st.button("🔍 立即手动触发一次扫描"):
-    st.success("✅ 已模拟执行 match_fetcher → lineup_monitor → ev_analyzer → wechat_push")
-    st.write("📌 比赛列表更新成功。")
-    st.write("📌 名单检测模拟完成，无主力缺阵。")
-    st.write("📌 检测到 1 场比赛存在 +EV 投注方向（例如 小分186.5 @1.82, EV+61.3%）")
-    st.write("📤 推荐已推送（模拟）。")
+st.markdown("✅ 当前监听运行中。点击下方按钮模拟生成推荐并进行真实推送（Server酱）")
 
-# 日志区块
-st.subheader("📈 最近一次推荐模拟结果")
-st.code("""
-比赛：Waverley vs Diamond Valley
-盘口：小186.5 @1.82
-EV评估：+61.3%
-状态：双方主力完整，盘口高开，小分方向构成强EV
-""", language='markdown')
+if st.button("🔔 测试推荐并推送"):
+    match = "Waverley vs Diamond Valley"
+    market = "小186.5 @1.82"
+    ev = 0.613
+    reason = "盘口高开，主力在阵，构成强EV"
+    content = f"推荐方向：{market}\n理由：{reason}"
+    success = send_push(f"NBL推荐 - {match}", content, ev, method="serverchan")
+    if success:
+        st.success("✅ 推送已发送，请在微信中确认")
+    else:
+        st.error("❌ 推送失败，请检查配置")
 
-st.caption("📡 Powered by ChatGPT - 专业级自动化赔率监听系统 v1.0")
+# ========== 2. 最近推荐记录 ==========
+st.header("📋 最近推荐记录")
+
+log_path = "logs/recommendations.jsonl"
+if os.path.exists(log_path):
+    with open(log_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()[-10:]  # 显示最近10条
+        records = [json.loads(l) for l in lines]
+        df = pd.DataFrame(records)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp", ascending=False)
+        st.dataframe(df[["timestamp", "match", "market", "ev", "pushed"]])
+else:
+    st.warning("暂无推荐记录")
+
+# ========== 3. 上传赛果，计算命中 ==========
+st.header("✅ 上传赛果 → 判断推荐是否命中")
+
+uploaded = st.file_uploader("上传赛果CSV（需包含 match, final_score 字段）", type=["csv"])
+if uploaded:
+    results_df = pd.read_csv(uploaded)
+    if "match" in results_df.columns and "final_score" in results_df.columns:
+        st.success("✅ 成功读取赛果数据")
+        st.write(results_df.head())
+
+        # 模拟命中判断（仅展示结构）
+        if os.path.exists(log_path):
+            logs = [json.loads(l) for l in open(log_path)]
+            for log in logs:
+                row = results_df[results_df["match"] == log["match"]]
+                if not row.empty:
+                    # 简单判断命中（仅示例）
+                    hit = "小" in log["market"] and int(row.iloc[0]["final_score"]) < 186.5
+                    log["hit"] = hit
+            st.success("🏁 命中判断完成，未来可扩展统计 ROI")
+        else:
+            st.warning("找不到推荐记录，无法对比")
+    else:
+        st.error("❌ 缺少必要字段：match 和 final_score")
+
+# ========== 4. ROI 图表（占位） ==========
+st.header("📈 ROI趋势图（开发中）")
+st.markdown("📊 即将支持：单位时间 ROI 走势、联赛分布、推荐类型效率对比图")
