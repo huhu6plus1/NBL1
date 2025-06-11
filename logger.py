@@ -1,10 +1,18 @@
-# 推荐日志记录模块
 import json
 from datetime import datetime
+import os
 
-LOG_FILE = "logs/recommendations.jsonl"
+LOG_PATH = "logs/recommendations.jsonl"
+os.makedirs("logs", exist_ok=True)
 
-def log_recommendation(data):
-    data["timestamp"] = datetime.utcnow().isoformat()
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
+def log_recommendation(match, market, ev, pushed=True):
+    data = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "match": match,
+        "market": market,
+        "ev": ev,
+        "pushed": pushed
+    }
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(data) + "\n")
+    print("✅ 推荐记录已写入日志")
