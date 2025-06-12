@@ -1,1 +1,3 @@
-# 页面模块：上传盘口截图进行OCR识别与EV分析
+import streamlit as st
+st.title('📤 上传盘口截图')
+st.markdown('功能：上传盘口截图并自动识别分析')
